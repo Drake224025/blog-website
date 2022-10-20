@@ -1,5 +1,6 @@
 const express = require("express");
 const _ = require("lodash");
+const mongoose = require("mongoose");
 
 const homeStartingContent =
   "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
@@ -10,17 +11,30 @@ const contactContent =
 
 const app = express();
 
-let homeContent = [];
-
 app.set("view engine", "ejs");
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static("public"));
 
+// Connect to mongoDB(local)
+mongoose.connect("mongodb://127.0.0.1:27017/blogDB");
+
+// Schema
+const postSchema = new mongoose.Schema({
+  title: String,
+  content: String,
+});
+
+// Models
+const PostItem = mongoose.model("post", postSchema);
+
 // GET methods
 app.get("/", (req, res) => {
-  res.render("home", { homeStartingContent, homeContent });
+  PostItem.find({}, (err, posts) => {
+    console.log("err", err);
+    res.render("home", { homeStartingContent, homeContent: !err ? posts : [] });
+  });
 });
 app.get("/about", (req, res) => {
   res.render("about", { aboutContent });
@@ -32,21 +46,27 @@ app.get("/compose", (req, res) => {
   res.render("compose");
 });
 app.get("/posts/:postId", (req, res) => {
-  const keyword = _.lowerCase(req.params.postId);
-  const found = homeContent.find((item) => _.lowerCase(item.title) === keyword);
+  const postId = req.params.postId;
+  // const found = homeContent.find((item) => _.lowerCase(item.title) === keyword);
 
-  if (found) {
-    res.render("post", { postData: found });
-  }
+  console.log("id", typeof postId);
+  PostItem.findById(postId, (err, docs) => {
+    res.render("post", { postData: docs });
+  });
+
+  // if (found) {
+  //   res.render("post", { postData: found });
+  // }
 });
 
 // POST methods
 app.post("/compose", (req, res) => {
-  const post = {
+  const post = new PostItem({
     title: req.body.postTitle,
     content: req.body.postBody,
-  };
-  homeContent.push(post);
+  });
+  post.save();
+  // homeContent.push(post);
   res.redirect("/");
 });
 
